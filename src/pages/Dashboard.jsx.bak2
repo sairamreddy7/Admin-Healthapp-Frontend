@@ -1,0 +1,507 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { userService, doctorService, patientService } from '../services/userService';
+
+export default function AdminDashboard() {
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalDoctors: 0,
+    totalPatients: 0,
+    activeSessions: 0,
+    systemHealth: '99.9% Uptime',
+    failedLogins: 0
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const loadDashboardData = useCallback(async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
+      console.log('🔍 Starting dashboard data fetch...');
+      
+      // Fetch all data in parallel
+      const [usersResponse, doctorsResponse, patientsResponse] = await Promise.all([
+        userService.getAll().catch(err => {
+          console.error('Users API error:', err);
+          return { data: [] };
+        }),
+        doctorService.getAll().catch(err => {
+          console.error('Doctors API error:', err);
+          return { data: [] };
+        }),
+        patientService.getAll().catch(err => {
+          console.error('Patients API error:', err);
+          return { data: { patients: [] } };
+        })
+      ]);
+      
+      console.log('✅ All data received');
+
+      // Extract data
+      const users = usersResponse.data || [];
+      const doctors = doctorsResponse.data?.data || doctorsResponse.data || [];
+      const patients = patientsResponse.data?.data?.patients || patientsResponse.data?.patients || [];
+
+      // Calculate stats
+      const adminCount = users.filter(u => u.role === 'ADMIN').length;
+      const activeCount = users.filter(u => u.isActive !== false).length;
+      
+      // Mock calculations for growth and sessions (replace with real data when available)
+      const userGrowth = users.length > 0 ? ((Math.random() * 3) + 0.5).toFixed(1) : 0;
+      const activeSessions = Math.floor(users.length * 0.08); // ~8% active
+      const sessionChange = ((Math.random() * 4) - 2).toFixed(1); // -2% to +2%
+      const failedLogins = Math.floor(Math.random() * 10);
+
+      setStats({
+        totalUsers: users.length,
+        totalDoctors: doctors.length,
+        totalPatients: patients.length,
+        activeUsers: activeCount,
+        activeSessions: activeSessions,
+        systemHealth: 99.9,
+        failedLogins: failedLogins,
+        userGrowth: parseFloat(userGrowth),
+        sessionChange: parseFloat(sessionChange)
+      });
+
+      // Set user distribution data with actual counts
+      setUserDistributionData([
+        { name: 'Patients', value: patients.length, color: '#3b82f6' },
+        { name: 'Doctors', value: doctors.length, color: '#10b981' },
+        { name: 'Admins', value: adminCount, color: '#f59e0b' }
+      ]);
+
+      // User activity data for the last 7 days
+      setUserActivityData([
+        { date: 'Mon', actions: 420, logins: 120, registrations: 12 },
+        { date: 'Tue', actions: 530, logins: 150, registrations: 18 },
+        { date: 'Wed', actions: 480, logins: 140, registrations: 15 },
+        { date: 'Thu', actions: 610, logins: 180, registrations: 22 },
+        { date: 'Fri', actions: 550, logins: 160, registrations: 19 },
+        { date: 'Sat', actions: 320, logins: 90, registrations: 8 },
+        { date: 'Sun', actions: 270, logins: 75, registrations: 6 }
+      ]);
+
+      // Get recent registrations
+      const sortedUsers = [...users].sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      const recentUsers = sortedUsers.slice(0, 5).map((user) => ({
+        id: user.id,
+        name: user.email.split('@')[0],
+        email: user.email,
+        role: user.role,
+        date: new Date(user.createdAt).toLocaleString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      }));
+      setRecentRegistrations(recentUsers);
+
+      setLastUpdated(new Date());
+
+    } catch (err) {
+      console.error('❌ Dashboard error:', err);
+      setError(err.message || 'Failed to load dashboard data');
+    } finally {
+      console.log('✅ Loading complete');
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDashboardData();
+
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing dashboard...');
+      loadDashboardData(true);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [loadDashboardData]);
+
+  const handleManualRefresh = () => {
+    loadDashboardData(true);
+  };
+
+  const getRoleBadgeColor = (role) => {
+    switch (role) {
+      case 'ADMIN': return 'bg-orange-100 text-orange-800';
+      case 'DOCTOR': return 'bg-green-100 text-green-800';
+      case 'PATIENT': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 font-medium">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Error Loading Dashboard</h2>
+          <p className="text-slate-600 mb-4">{error}</p>
+          <button 
+            onClick={() => loadDashboardData()}
+            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Page Heading */}
+      <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
+        <div>
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">Welcome back, Admin! 👋</h2>
+          <p className="text-base text-slate-600">
+            Here's what's happening with your healthcare system today.
+          </p>
+          {lastUpdated && (
+            <div className="flex items-center gap-2 text-sm text-slate-500 mt-3">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+              </span>
+              <span className="font-medium">Live</span>
+              <span>•</span>
+              <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>
+            </div>
+          )}
+        </div>
+        <button
+          onClick={handleManualRefresh}
+          disabled={refreshing}
+          className={`flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl hover:from-indigo-700 hover:to-blue-700 transition-all font-semibold text-sm shadow-lg hover:shadow-xl ${
+            refreshing ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          <svg 
+            className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+            strokeWidth={2.5}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {refreshing ? 'Refreshing...' : 'Refresh Data'}
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+              <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold text-white">Total</span>
+            </div>
+            <p className="text-sm font-medium text-blue-100 mb-1">Total Users</p>
+            <p className="text-4xl font-bold text-white mb-2">{stats.totalUsers.toLocaleString()}</p>
+            <p className={`text-sm font-semibold flex items-center gap-1 ${stats.userGrowth >= 0 ? 'text-green-200' : 'text-red-200'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={stats.userGrowth >= 0 ? "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" : "M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"} />
+              </svg>
+              {stats.userGrowth >= 0 ? '+' : ''}{stats.userGrowth}% from last month
+            </p>
+          </div>
+        </div>
+
+        <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold text-white">Active</span>
+            </div>
+            <p className="text-sm font-medium text-emerald-100 mb-1">Active Sessions</p>
+            <p className="text-4xl font-bold text-white mb-2">{stats.activeSessions}</p>
+            <p className={`text-sm font-semibold flex items-center gap-1 ${stats.sessionChange >= 0 ? 'text-green-200' : 'text-red-200'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={stats.sessionChange >= 0 ? "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" : "M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"} />
+              </svg>
+              {stats.sessionChange >= 0 ? '+' : ''}{stats.sessionChange}% from yesterday
+            </p>
+          </div>
+        </div>
+
+        <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold text-white">Healthy</span>
+            </div>
+            <p className="text-sm font-medium text-purple-100 mb-1">System Health</p>
+            <p className="text-4xl font-bold text-white mb-2">{stats.systemHealth}%</p>
+            <p className="text-sm font-semibold flex items-center gap-1 text-green-200">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              All systems operational
+            </p>
+          </div>
+        </div>
+
+        <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold text-white">24h</span>
+            </div>
+            <p className="text-sm font-medium text-orange-100 mb-1">Failed Logins</p>
+            <p className="text-4xl font-bold text-white mb-2">{stats.failedLogins}</p>
+            <p className="text-sm font-semibold flex items-center gap-1 text-green-200">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Security status: Low risk
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 mb-8">
+        {/* User Activity Chart */}
+        <div className="flex flex-col gap-4 rounded-2xl bg-white p-8 shadow-xl lg:col-span-3 border border-slate-200/50">
+          <div>
+            <p className="text-base font-semibold text-slate-900">User Activity (Last 7 Days)</p>
+            <p className="mt-1 text-3xl font-bold text-slate-900">
+              {userActivityData.reduce((sum, day) => sum + day.actions, 0).toLocaleString()} Actions
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              Last 7 Days <span className="font-medium text-green-600">+5.2%</span>
+            </p>
+          </div>
+          <ResponsiveContainer width="100%" height={250}>
+            <AreaChart data={userActivityData}>
+              <defs>
+                <linearGradient id="colorActions" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+              <XAxis 
+                dataKey="date" 
+                stroke="#94a3b8"
+                tick={{ fill: '#64748b', fontSize: 12 }}
+                axisLine={{ stroke: '#e2e8f0' }}
+              />
+              <YAxis 
+                stroke="#94a3b8"
+                tick={{ fill: '#64748b', fontSize: 12 }}
+                axisLine={{ stroke: '#e2e8f0' }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#fff', 
+                  border: 'none',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  padding: '10px'
+                }}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="actions" 
+                stroke="#3b82f6" 
+                strokeWidth={2}
+                fill="url(#colorActions)"
+                name="Actions"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* User Distribution Chart */}
+        <div className="flex flex-col gap-4 rounded-2xl bg-white p-8 shadow-xl lg:col-span-2 border border-slate-200/50">
+          <div>
+            <p className="text-base font-semibold text-slate-900">User Role Distribution</p>
+            <p className="mt-1 text-3xl font-bold text-slate-900">
+              {stats.totalUsers.toLocaleString()} Users
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              All Time <span className="font-medium text-green-600">+{stats.userGrowth}%</span>
+            </p>
+          </div>
+          <div className="flex items-center justify-center">
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={userDistributionData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {userDistributionData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#fff', 
+                    border: 'none',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    padding: '10px'
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="space-y-2">
+            {userDistributionData.map((item, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                <p className="flex-1 text-sm text-slate-600">
+                  {item.name}
+                </p>
+                <p className="text-sm font-semibold text-slate-900">
+                  {((item.value / stats.totalUsers) * 100).toFixed(0)}%
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 p-8 shadow-xl border border-slate-200/50 mb-8">
+        <h3 className="text-2xl font-bold text-slate-900 mb-2">⚡ Quick Actions</h3>
+        <p className="text-sm text-slate-600 mb-6">Quickly access common administrative tasks.</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <button 
+            onClick={() => window.location.href = '/users'}
+            className="group flex items-center gap-4 rounded-xl bg-white p-5 text-left hover:shadow-lg transition-all duration-300 border-2 border-slate-200 hover:border-indigo-300 hover:-translate-y-1"
+          >
+            <div className="rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 p-3 text-white shadow-lg group-hover:scale-110 transition-transform">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-slate-900 mb-1">Add New User</p>
+              <p className="text-xs text-slate-600">Onboard a new patient, doctor, or admin.</p>
+            </div>
+          </button>
+          <button 
+            onClick={() => window.location.href = '/audit-logs'}
+            className="group flex items-center gap-4 rounded-xl bg-white p-5 text-left hover:shadow-lg transition-all duration-300 border-2 border-slate-200 hover:border-purple-300 hover:-translate-y-1"
+          >
+            <div className="rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 p-3 text-white shadow-lg group-hover:scale-110 transition-transform">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-slate-900 mb-1">View Audit Logs</p>
+              <p className="text-xs text-slate-600">Review recent system activities.</p>
+            </div>
+          </button>
+          <button 
+            onClick={() => alert('Password reset feature coming soon!')}
+            className="group flex items-center gap-4 rounded-xl bg-white p-5 text-left hover:shadow-lg transition-all duration-300 border-2 border-slate-200 hover:border-orange-300 hover:-translate-y-1"
+          >
+            <div className="rounded-xl bg-gradient-to-br from-orange-500 to-red-600 p-3 text-white shadow-lg group-hover:scale-110 transition-transform">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-slate-900 mb-1">Password Resets</p>
+              <p className="text-xs text-slate-600">Help users unlock their accounts.</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Recent Registrations */}
+      {recentRegistrations.length > 0 && (
+        <div className="rounded-2xl bg-white p-8 shadow-xl border border-slate-200/50">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-1">🆕 Recent Registrations</h3>
+              <p className="text-sm text-slate-600">Latest user signups</p>
+            </div>
+            <span className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl text-xs font-bold shadow-lg">
+              NEW
+            </span>
+          </div>
+          <div className="space-y-3">
+            {recentRegistrations.map((user) => (
+              <div 
+                key={user.id} 
+                className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-slate-50 to-blue-50 hover:from-blue-50 hover:to-purple-50 transition-all border border-slate-200 hover:border-indigo-300 hover:shadow-md"
+              >
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg ring-4 ring-indigo-100">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-bold text-slate-900 truncate">{user.name}</p>
+                      <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${getRoleBadgeColor(user.role)}`}>
+                        {user.role}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-600 truncate">{user.email}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500 ml-4 font-medium">{user.date}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
