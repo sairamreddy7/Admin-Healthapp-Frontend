@@ -1,0 +1,51 @@
+name: Deploy Admin Portal to VM2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+      
+      - name: Deploy to VM2 via SSH
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.VM2_HOST }}
+          username: ${{ secrets.VM2_USERNAME }}
+          password: ${{ secrets.VM2_PASSWORD }}
+          source: "dist/*"
+          target: "/home/grp06admin/healthcare-portal-frontend/"
+          strip_components: 1
+          rm: true
+      
+      - name: Reload Nginx on VM2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VM2_HOST }}
+          username: ${{ secrets.VM2_USERNAME }}
+          password: ${{ secrets.VM2_PASSWORD }}
+          script: |
+            sudo systemctl reload nginx
+            echo "✅ Admin Portal deployment complete!"
+            echo "🌐 Access at: http://20.42.48.79"
