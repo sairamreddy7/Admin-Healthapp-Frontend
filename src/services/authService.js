@@ -13,6 +13,14 @@ export const authService = {
     return response.data;
   },
 
+  async changePassword(currentPassword, newPassword) {
+    const response = await api.post('/auth/change-password', {
+      currentPassword,
+      newPassword
+    });
+    return response.data;
+  },
+
   logout() {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   FiUser, FiLock, FiBell, FiShield, FiDatabase, 
   FiMail, FiGlobe, FiSave, FiRefreshCw, FiCheck,
   FiAlertCircle, FiServer, FiSettings as FiSettingsIcon
 } from 'react-icons/fi';
+import { authService } from '../services/authService';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('profile');
@@ -81,34 +82,61 @@ export default function Settings() {
     setSaveSuccess(false);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Validation
+      // Validation for security section
       if (section === 'security') {
-        if (securityData.newPassword && securityData.newPassword !== securityData.confirmPassword) {
-          throw new Error('Passwords do not match');
+        // Check if trying to change password
+        if (securityData.newPassword || securityData.currentPassword) {
+          // Validate all password fields are filled
+          if (!securityData.currentPassword) {
+            throw new Error('Current password is required');
+          }
+          if (!securityData.newPassword) {
+            throw new Error('New password is required');
+          }
+          if (!securityData.confirmPassword) {
+            throw new Error('Please confirm your new password');
+          }
+          
+          // Validate passwords match
+          if (securityData.newPassword !== securityData.confirmPassword) {
+            throw new Error('New passwords do not match');
+          }
+          
+          // Validate password length
+          if (securityData.newPassword.length < 8) {
+            throw new Error('Password must be at least 8 characters');
+          }
+
+          // Call the API to change password
+          await authService.changePassword(
+            securityData.currentPassword,
+            securityData.newPassword
+          );
+          
+          // Clear password fields after successful save
+          setSecurityData({
+            ...securityData,
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: ''
+          });
         }
-        if (securityData.newPassword && securityData.newPassword.length < 8) {
-          throw new Error('Password must be at least 8 characters');
-        }
+      } else {
+        // For other sections, simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(`Saving ${section} settings...`);
       }
 
-      console.log(`Saving ${section} settings...`);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
 
-      // Clear password fields after successful save
-      if (section === 'security') {
-        setSecurityData({
-          ...securityData,
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        });
-      }
     } catch (err) {
-      setError(err.message || 'Failed to save settings');
+      // Handle API errors
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError(err.message || 'Failed to save settings');
+      }
     } finally {
       setLoading(false);
     }
