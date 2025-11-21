@@ -16,4 +16,4 @@ echo "Password: Healthcare@Group06!"
 scp -r dist/* grp06admin@20.42.48.79:~/healthcare-portal-frontend/
 
 echo ""
-echo "✅ Done! Check: http://20.42.48.79"
+echo "✅ Done! Check: https://grp06healthapp.eastus.cloudapp.azure.com/admin"

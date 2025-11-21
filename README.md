@@ -37,10 +37,14 @@ Create a \`.env\` file:
 VITE_API_URL=https://your-api-url.com/api
 \`\`\`
 
+## Production URL
+
+https://grp06healthapp.eastus.cloudapp.azure.com/admin
+
 ## Login
 
-- Username: \`admin\`
-- Password: \`Admin@123\`
+- Username: `admin`
+- Password: `Admin@123`
 
 ## License
 

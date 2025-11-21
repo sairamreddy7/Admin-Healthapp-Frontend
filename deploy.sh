@@ -53,5 +53,5 @@ fi
 
 echo ""
 echo "🎉 Deployment complete!"
-echo "🌐 Access your admin portal at: http://20.42.48.79"
+echo "🌐 Access your admin portal at: https://grp06healthapp.eastus.cloudapp.azure.com/admin"
 echo ""

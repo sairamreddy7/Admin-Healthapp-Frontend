@@ -50,4 +50,4 @@ jobs:
           script: |
             sudo systemctl reload nginx
             echo "✅ Admin Portal deployment complete!"
-            echo "🌐 Access at: http://20.42.48.79"
+            echo "🌐 Access at: https://grp06healthapp.eastus.cloudapp.azure.com/admin"
