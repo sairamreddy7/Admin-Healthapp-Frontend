@@ -9,6 +9,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      VM2_HOST: ${{ secrets.VM2_HOST }}
+      VM2_USERNAME: ${{ secrets.VM2_USERNAME }}
+      VM2_PASSWORD: ${{ secrets.VM2_PASSWORD }}
     
     steps:
       - name: Checkout code
@@ -25,15 +29,13 @@ jobs:
       
       - name: Build frontend
         run: npm run build
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
       
       - name: Deploy to VM2 via SSH
         uses: appleboy/scp-action@master
         with:
-          host: ${{ secrets.VM2_HOST }}
-          username: ${{ secrets.VM2_USERNAME }}
-          password: ${{ secrets.VM2_PASSWORD }}
+          host: ${{ env.VM2_HOST }}
+          username: ${{ env.VM2_USERNAME }}
+          password: ${{ env.VM2_PASSWORD }}
           source: "dist/*"
           target: "/home/grp06admin/healthcare-portal-frontend/"
           strip_components: 1
@@ -42,9 +44,9 @@ jobs:
       - name: Reload Nginx on VM2
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.VM2_HOST }}
-          username: ${{ secrets.VM2_USERNAME }}
-          password: ${{ secrets.VM2_PASSWORD }}
+          host: ${{ env.VM2_HOST }}
+          username: ${{ env.VM2_USERNAME }}
+          password: ${{ env.VM2_PASSWORD }}
           script: |
             sudo systemctl reload nginx
             echo "✅ Admin Portal deployment complete!"
