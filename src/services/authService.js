@@ -14,11 +14,22 @@ export const authService = {
   },
 
   async changePassword(currentPassword, newPassword) {
-    const response = await api.post('/auth/change-password', {
-      currentPassword,
-      newPassword
-    });
-    return response.data;
+    try {
+      // Try the primary endpoint first
+      const response = await api.post('/auth/change-password', {
+        currentPassword,
+        newPassword
+      });
+      return response.data;
+    } catch (error) {
+      // If 404, the endpoint doesn't exist
+      if (error.response?.status === 404) {
+        console.error('Change password endpoint not found. Available endpoints may differ.');
+        throw new Error('Password change feature is not available on the backend. Please contact your system administrator.');
+      }
+      // Re-throw other errors
+      throw error;
+    }
   },
 
   logout() {

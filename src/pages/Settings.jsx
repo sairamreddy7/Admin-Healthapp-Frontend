@@ -132,8 +132,11 @@ export default function Settings() {
 
     } catch (err) {
       // Handle API errors
+      console.error('Settings save error:', err);
       if (err.response?.data?.message) {
         setError(err.response.data.message);
+      } else if (err.response?.status === 404) {
+        setError('Password change feature is not yet implemented on the backend. Please contact your system administrator.');
       } else {
         setError(err.message || 'Failed to save settings');
       }
