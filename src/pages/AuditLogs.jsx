@@ -6,6 +6,8 @@ export default function AuditLogs() {
   const [filterType, setFilterType] = useState('ALL');
   const [filterRole, setFilterRole] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage] = useState(20);
 
   useEffect(() => {
     loadLogs();
@@ -14,15 +16,15 @@ export default function AuditLogs() {
   const loadLogs = async () => {
     try {
       setLoading(true);
-      
+
       // Try to fetch real audit logs from API
       try {
-        const response = await fetch('https://grp06healthapp.eastus.cloudapp.azure.com/api/audit-logs', {
+        const response = await fetch('https://healthapp-beta.eastus.cloudapp.azure.com/api/audit-logs', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
           }
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {
@@ -41,7 +43,7 @@ export default function AuditLogs() {
 
       // Fetch appointments
       try {
-        const appointmentsRes = await fetch('https://grp06healthapp.eastus.cloudapp.azure.com/api/appointments', {
+        const appointmentsRes = await fetch('https://healthapp-beta.eastus.cloudapp.azure.com/api/appointments', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
         });
         if (appointmentsRes.ok) {
@@ -66,7 +68,7 @@ export default function AuditLogs() {
 
       // Fetch doctors
       try {
-        const doctorsRes = await fetch('https://grp06healthapp.eastus.cloudapp.azure.com/api/doctors', {
+        const doctorsRes = await fetch('https://healthapp-beta.eastus.cloudapp.azure.com/api/doctors', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
         });
         if (doctorsRes.ok) {
@@ -91,7 +93,7 @@ export default function AuditLogs() {
 
       // Fetch patients
       try {
-        const patientsRes = await fetch('https://grp06healthapp.eastus.cloudapp.azure.com/api/patients', {
+        const patientsRes = await fetch('https://healthapp-beta.eastus.cloudapp.azure.com/api/patients', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
         });
         if (patientsRes.ok) {
@@ -128,9 +130,9 @@ export default function AuditLogs() {
 
       // Sort by timestamp (newest first)
       generatedLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      
+
       setLogs(generatedLogs);
-      
+
       // If no real data found, fallback to mock data
       if (generatedLogs.length === 0) {
         const mockLogs = [
@@ -144,56 +146,56 @@ export default function AuditLogs() {
             status: 'SUCCESS',
             details: 'User logged in successfully'
           },
-        {
-          id: 2,
-          timestamp: new Date(Date.now() - 3600000).toISOString(),
-          action: 'LOGIN',
-          user: 'doctor@example.com',
-          role: 'DOCTOR',
-          ipAddress: '192.168.1.101',
-          status: 'SUCCESS',
-          details: 'User logged in successfully'
-        },
-        {
-          id: 3,
-          timestamp: new Date(Date.now() - 7200000).toISOString(),
-          action: 'LOGOUT',
-          user: 'patient@example.com',
-          role: 'PATIENT',
-          ipAddress: '192.168.1.100',
-          status: 'SUCCESS',
-          details: 'User logged out'
-        },
-        {
-          id: 4,
-          timestamp: new Date(Date.now() - 10800000).toISOString(),
-          action: 'APPOINTMENT_CREATED',
-          user: 'patient@example.com',
-          role: 'PATIENT',
-          ipAddress: '192.168.1.100',
-          status: 'SUCCESS',
-          details: 'Appointment created with Dr. Smith'
-        },
-        {
-          id: 5,
-          timestamp: new Date(Date.now() - 14400000).toISOString(),
-          action: 'LOGIN',
-          user: 'invalid@example.com',
-          role: 'UNKNOWN',
-          ipAddress: '192.168.1.200',
-          status: 'FAILED',
-          details: 'Invalid credentials'
-        },
-        {
-          id: 6,
-          timestamp: new Date(Date.now() - 18000000).toISOString(),
-          action: 'USER_DELETED',
-          user: 'admin@healthcare.com',
-          role: 'ADMIN',
-          ipAddress: '192.168.1.1',
-          status: 'SUCCESS',
-          details: 'Deleted user: olduser@example.com'
-        },
+          {
+            id: 2,
+            timestamp: new Date(Date.now() - 3600000).toISOString(),
+            action: 'LOGIN',
+            user: 'doctor@example.com',
+            role: 'DOCTOR',
+            ipAddress: '192.168.1.101',
+            status: 'SUCCESS',
+            details: 'User logged in successfully'
+          },
+          {
+            id: 3,
+            timestamp: new Date(Date.now() - 7200000).toISOString(),
+            action: 'LOGOUT',
+            user: 'patient@example.com',
+            role: 'PATIENT',
+            ipAddress: '192.168.1.100',
+            status: 'SUCCESS',
+            details: 'User logged out'
+          },
+          {
+            id: 4,
+            timestamp: new Date(Date.now() - 10800000).toISOString(),
+            action: 'APPOINTMENT_CREATED',
+            user: 'patient@example.com',
+            role: 'PATIENT',
+            ipAddress: '192.168.1.100',
+            status: 'SUCCESS',
+            details: 'Appointment created with Dr. Smith'
+          },
+          {
+            id: 5,
+            timestamp: new Date(Date.now() - 14400000).toISOString(),
+            action: 'LOGIN',
+            user: 'invalid@example.com',
+            role: 'UNKNOWN',
+            ipAddress: '192.168.1.200',
+            status: 'FAILED',
+            details: 'Invalid credentials'
+          },
+          {
+            id: 6,
+            timestamp: new Date(Date.now() - 18000000).toISOString(),
+            action: 'USER_DELETED',
+            user: 'admin@healthcare.com',
+            role: 'ADMIN',
+            ipAddress: '192.168.1.1',
+            status: 'SUCCESS',
+            details: 'Deleted user: olduser@example.com'
+          },
           {
             id: 7,
             timestamp: new Date(Date.now() - 21600000).toISOString(),
@@ -205,7 +207,7 @@ export default function AuditLogs() {
             details: 'Password reset requested and completed'
           }
         ];
-        
+
         setLogs(mockLogs);
       }
     } catch (err) {
@@ -219,9 +221,20 @@ export default function AuditLogs() {
     const matchesType = filterType === 'ALL' || log.action.includes(filterType);
     const matchesRole = filterRole === 'ALL' || log.role === filterRole;
     const matchesSearch = log.user?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.details?.toLowerCase().includes(searchTerm.toLowerCase());
+      log.details?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesType && matchesRole && matchesSearch;
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredLogs.length / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
+  const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
+
+  // Reset to page 1 if filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterType, filterRole, searchTerm]);
 
   const getActionColor = (action) => {
     if (action.includes('LOGIN')) return { bg: '#dbeafe', text: '#1e40af' };
@@ -240,9 +253,9 @@ export default function AuditLogs() {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ 
-            width: '50px', 
-            height: '50px', 
+          <div style={{
+            width: '50px',
+            height: '50px',
             border: '4px solid #f3f3f3',
             borderTop: '4px solid #667eea',
             borderRadius: '50%',
@@ -263,11 +276,11 @@ export default function AuditLogs() {
       </div>
 
       {/* Statistics Cards */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-        gap: '1rem', 
-        marginBottom: '2rem' 
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '1rem',
+        marginBottom: '2rem'
       }}>
         <div style={{
           background: 'white',
@@ -381,19 +394,19 @@ export default function AuditLogs() {
             </tr>
           </thead>
           <tbody>
-            {filteredLogs.length === 0 ? (
+            {paginatedLogs.length === 0 ? (
               <tr>
                 <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>
                   No audit logs found
                 </td>
               </tr>
             ) : (
-              filteredLogs.map(log => {
+              paginatedLogs.map(log => {
                 const actionColor = getActionColor(log.action);
                 return (
                   <tr key={log.id} style={{ borderTop: '1px solid #e5e7eb', transition: 'background 0.2s' }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'white'}>
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}>
                     <td style={{ padding: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
                       {new Date(log.timestamp).toLocaleString()}
                     </td>
@@ -440,10 +453,88 @@ export default function AuditLogs() {
       </div>
 
       <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ color: '#6b7280' }}>
-            Showing <strong>{filteredLogs.length}</strong> of <strong>{logs.length}</strong> logs
+            Showing <strong>{startIndex + 1}</strong> to <strong>{Math.min(endIndex, filteredLogs.length)}</strong> of <strong>{filteredLogs.length}</strong> logs
           </div>
+
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  background: currentPage === 1 ? '#e5e7eb' : '#667eea',
+                  color: currentPage === 1 ? '#9ca3af' : 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600'
+                }}
+              >
+                ← Previous
+              </button>
+
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => {
+                  // Show first page, last page, current page, and pages around current
+                  const showPage = pageNum === 1 ||
+                    pageNum === totalPages ||
+                    Math.abs(pageNum - currentPage) <= 1;
+
+                  const showEllipsis = (pageNum === 2 && currentPage > 3) ||
+                    (pageNum === totalPages - 1 && currentPage < totalPages - 2);
+
+                  if (showEllipsis) {
+                    return <span key={pageNum} style={{ padding: '0 0.25rem', color: '#9ca3af' }}>...</span>;
+                  }
+
+                  if (!showPage) return null;
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        background: currentPage === pageNum ? '#667eea' : 'white',
+                        color: currentPage === pageNum ? 'white' : '#374151',
+                        border: '1px solid',
+                        borderColor: currentPage === pageNum ? '#667eea' : '#e5e7eb',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        minWidth: '2.5rem'
+                      }}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  background: currentPage === totalPages ? '#e5e7eb' : '#667eea',
+                  color: currentPage === totalPages ? '#9ca3af' : 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600'
+                }}
+              >
+                Next →
+              </button>
+            </div>
+          )}
+
           <button
             onClick={loadLogs}
             style={{

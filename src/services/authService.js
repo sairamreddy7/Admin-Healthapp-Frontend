@@ -1,35 +1,41 @@
+// src/services/authService.js
 import api from './api';
 
 export const authService = {
-  async login(email, password) {
-    // Azure backend uses 'username' instead of 'email'
-    const response = await api.post('/auth/login', { username: email, password });
-    if (response.data.token || response.data.data?.token) {
-      const token = response.data.token || response.data.data?.token;
-      const user = response.data.user || response.data.data;
-      localStorage.setItem('adminToken', token);
-      localStorage.setItem('adminUser', JSON.stringify(user));
-    }
-    return response.data;
-  },
+  async login(username, password) {
+    // Use AD-based staff login so it checks VM1 and then creates/updates user in DB
+    const response = await api.post('/auth/staff-ad-login', {
+      username,
+      password,
+    });
 
-  async changePassword(currentPassword, newPassword) {
-    try {
-      // Try the primary endpoint first
-      const response = await api.post('/auth/change-password', {
-        currentPassword,
-        newPassword
-      });
-      return response.data;
-    } catch (error) {
-      // If 404, the endpoint doesn't exist
-      if (error.response?.status === 404) {
-        console.error('Change password endpoint not found. Available endpoints may differ.');
-        throw new Error('Password change feature is not available on the backend. Please contact your system administrator.');
-      }
-      // Re-throw other errors
-      throw error;
+    const payload = response.data || {};
+
+    // If backend indicates failure, surface the message
+    if (!payload.success) {
+      throw new Error(
+        payload.message || 'Unable to sign in. Please check your credentials.'
+      );
     }
+
+    const data = payload.data || {};
+
+    // Enforce that ONLY ADMIN users can access this admin portal
+    if (!data.role || data.role.toUpperCase() !== 'ADMIN') {
+      throw new Error(
+        'You are not authorized to access the admin portal. Please use an administrator account.'
+      );
+    }
+
+    if (!data.token) {
+      throw new Error('Login successful but token is missing from response.');
+    }
+
+    // Store token and user for admin SPA
+    localStorage.setItem('adminToken', data.token);
+    localStorage.setItem('adminUser', JSON.stringify(data));
+
+    return data;
   },
 
   logout() {
@@ -48,5 +54,5 @@ export const authService = {
 
   isAuthenticated() {
     return !!this.getToken();
-  }
+  },
 };

@@ -10,7 +10,6 @@ import Appointments from './pages/Appointments';
 import Billing from './pages/Billing';
 import Prescriptions from './pages/Prescriptions';
 import TestResults from './pages/TestResults';
-import Messages from './pages/Messages';
 import AuditLogs from './pages/AuditLogs';
 import Settings from './pages/Settings';
 
@@ -20,7 +19,7 @@ function PrivateRoute({ children }) {
 
 function App() {
   return (
-    <BrowserRouter basename="/admin">
+    <BrowserRouter /* basename="/admin" - COMMENTED FOR LOCAL TESTING */>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
@@ -33,7 +32,6 @@ function App() {
           <Route path="billing" element={<Billing />} />
           <Route path="prescriptions" element={<Prescriptions />} />
           <Route path="test-results" element={<TestResults />} />
-          <Route path="messages" element={<Messages />} />
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="settings" element={<Settings />} />
         </Route>

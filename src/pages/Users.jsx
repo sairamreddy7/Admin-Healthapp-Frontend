@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FiRefreshCw } from 'react-icons/fi';
-import { userService } from '../services/userService';
+import { userService, patientService } from '../services/userService';
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -44,13 +44,35 @@ export default function Users() {
     loadUsers(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+  const handleDelete = async (user) => {
+    // Only allow deleting patients
+    if (user.role !== 'PATIENT') {
+      alert('Only patient accounts can be deleted. Doctor and admin accounts cannot be removed.');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete patient ${user.email}? This action cannot be undone.`)) return;
+
     try {
-      await userService.delete(id);
+      // First, get all patients to find the patient record for this user
+      const patientsResponse = await patientService.getAll();
+      const patients = patientsResponse.data?.data?.patients || patientsResponse.data?.patients || [];
+
+      // Find the patient record that matches this userId
+      const patientRecord = patients.find(p => p.userId === user.id);
+
+      if (!patientRecord) {
+        alert('Patient record not found. This user may not have a complete patient profile.');
+        return;
+      }
+
+      // Use the patient's ID (not userId) for deletion
+      await patientService.delete(patientRecord.id);
+      alert('Patient deleted successfully');
       loadUsers(true);
     } catch (err) {
-      alert('Error deleting user');
+      console.error('Error deleting patient:', err);
+      alert(err.response?.data?.message || err.response?.data?.error || 'Error deleting patient. Please try again.');
     }
   };
 
@@ -67,9 +89,9 @@ export default function Users() {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ 
-            width: '50px', 
-            height: '50px', 
+          <div style={{
+            width: '50px',
+            height: '50px',
             border: '4px solid #f3f3f3',
             borderTop: '4px solid #667eea',
             borderRadius: '50%',
@@ -124,10 +146,10 @@ export default function Users() {
         </div>
 
         {patientRoleCount > 0 && (
-          <div style={{ 
-            background: '#fef3c7', 
-            border: '1px solid #fcd34d', 
-            borderRadius: '8px', 
+          <div style={{
+            background: '#fef3c7',
+            border: '1px solid #fcd34d',
+            borderRadius: '8px',
             padding: '0.75rem 1rem',
             marginBottom: '1rem'
           }}>
@@ -193,8 +215,8 @@ export default function Users() {
             ) : (
               filteredUsers.map(user => (
                 <tr key={user.id} style={{ borderTop: '1px solid #e5e7eb', transition: 'background 0.2s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}>
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'white'}>
                   <td style={{ padding: '1rem' }}>
                     <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>{user.email}</div>
                     <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>@{user.username}</div>
@@ -227,24 +249,30 @@ export default function Users() {
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
                   <td style={{ padding: '1rem' }}>
-                    <button 
-                      onClick={() => handleDelete(user.id)}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        background: '#ef4444',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.target.style.background = '#dc2626'}
-                      onMouseLeave={(e) => e.target.style.background = '#ef4444'}
-                    >
-                      🗑️ Delete
-                    </button>
+                    {user.role === 'PATIENT' ? (
+                      <button
+                        onClick={() => handleDelete(user)}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          background: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          fontWeight: '500',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.background = '#dc2626'}
+                        onMouseLeave={(e) => e.target.style.background = '#ef4444'}
+                      >
+                        🗑️ Delete
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: '0.875rem', color: '#9ca3af', fontStyle: 'italic' }}>
+                        {user.role === 'DOCTOR' ? 'Cannot delete doctors' : 'Cannot delete admins'}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FiPlus, FiX, FiRefreshCw } from 'react-icons/fi';
 import { patientService } from '../services/userService';
+import api from '../services/api';
 
 export default function Patients() {
   const [patients, setPatients] = useState([]);
@@ -10,11 +11,13 @@ export default function Patients() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [formData, setFormData] = useState({
+    username: '',
     firstName: '',
     lastName: '',
     email: '',
     password: '',
     dateOfBirth: '',
+    gender: 'Male',
     phoneNumber: '',
     address: ''
   });
@@ -65,38 +68,57 @@ export default function Patients() {
     setFormLoading(true);
 
     try {
-      // Generate username from email (part before @)
-      const username = formData.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-      
-      // Prepare data in the format expected by the patient service
-      const patientData = {
+      // Use the username from the form (or generate from email if empty)
+      const username = formData.username || formData.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      // Step 1: Register the user first to get userId
+      const registerResponse = await api.post('/auth/register', {
         username: username,
         email: formData.email,
         password: formData.password,
         role: 'PATIENT',
-        // Additional fields for the patient profile
+        firstName: formData.firstName,
+        lastName: formData.lastName
+      });
+
+      console.log('User registered:', registerResponse.data);
+      const userId = registerResponse.data?.data?.userId || registerResponse.data?.userId;
+
+      if (!userId) {
+        throw new Error('Failed to get user ID from registration');
+      }
+
+      // Step 2: Create patient profile with the userId
+      const patientData = {
+        userId: userId,
         firstName: formData.firstName,
         lastName: formData.lastName,
         dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
         phoneNumber: formData.phoneNumber,
-        address: formData.address
+        address: formData.address || ''
       };
 
       await patientService.create(patientData);
+
       setShowAddModal(false);
       setFormData({
+        username: '',
         firstName: '',
         lastName: '',
         email: '',
         password: '',
         dateOfBirth: '',
+        gender: 'Male',
         phoneNumber: '',
         address: ''
       });
+      alert('Patient added successfully!');
       loadPatients(true);
     } catch (err) {
       console.error('Error creating patient:', err);
-      setFormError(err.response?.data?.message || err.response?.data?.error || 'Failed to add patient');
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to add patient';
+      setFormError(errorMessage);
     } finally {
       setFormLoading(false);
     }
@@ -114,9 +136,9 @@ export default function Patients() {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ 
-            width: '50px', 
-            height: '50px', 
+          <div style={{
+            width: '50px',
+            height: '50px',
             border: '4px solid #f3f3f3',
             borderTop: '4px solid #667eea',
             borderRadius: '50%',
@@ -193,10 +215,10 @@ export default function Patients() {
           </div>
         </div>
 
-        <div style={{ 
-          background: '#eff6ff', 
-          border: '1px solid #bfdbfe', 
-          borderRadius: '8px', 
+        <div style={{
+          background: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          borderRadius: '8px',
           padding: '0.75rem 1rem',
           marginBottom: '1rem'
         }}>
@@ -240,8 +262,8 @@ export default function Patients() {
             </thead>
             <tbody>
               {filteredPatients.map((patient) => (
-                <tr 
-                  key={patient.id} 
+                <tr
+                  key={patient.id}
                   style={{ borderTop: '1px solid #e5e7eb', transition: 'background 0.2s' }}
                   onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
@@ -359,6 +381,29 @@ export default function Patients() {
 
             <form onSubmit={handleAddPatient}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>
+                    Username *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontSize: '1rem'
+                    }}
+                    placeholder="johndoe"
+                  />
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                    Unique username for login (lowercase letters and numbers only)
+                  </p>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>
@@ -457,6 +502,29 @@ export default function Patients() {
                       fontSize: '1rem'
                     }}
                   />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>
+                    Gender *
+                  </label>
+                  <select
+                    required
+                    value={formData.gender}
+                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontSize: '1rem',
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
 
                 <div>
