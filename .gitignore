@@ -50,3 +50,4 @@ coverage/
 # Vite specific
 *.local
 vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
